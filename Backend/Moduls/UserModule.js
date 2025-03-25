@@ -40,7 +40,7 @@ const teacherSchema=new mongoose.Schema({
   },
   subject:{
     type:String,
-    required:true,
+    
   },
   classes:[{
     type:String,
@@ -54,10 +54,7 @@ const studentSchema=new mongoose.Schema({
       type:String,
       required:true,
     },
-    class:{
-      type:String,
-      required:true,
-    },
+    
     rollno:{
       type:Number,
       required:true,

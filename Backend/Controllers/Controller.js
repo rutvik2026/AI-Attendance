@@ -267,6 +267,25 @@ const getAttendanceController=async(req,res)=>{
       res.status(500).json({message:"error in getAttendanceController",sucess:false})
     }
 }
+
+const getStudentAttendanceController=async(req,res)=>{
+  try {
+    const { classId, rollNo } = req.query.q;
+    const classes = await classModule.findOne({ _id: classId });
+    if (!classes) {
+      res
+        .status(400)
+        .json({ message: "Error in getStudentAtendanceController" });
+    }
+    const attendance = await classes.attendance.filter(
+      attendance.student.rollNo === rollNo
+    );
+    res.status(200).json({ message: "getAttendance sucessfully" });
+  } catch (error) {
+    console.log("error in getStudentAttendance",error);
+    res.status(500).json({message:"error in getStudentAttendance"});
+  }
+}
 export { 
     registerController ,
     loginController,
@@ -275,4 +294,5 @@ export {
     getSearchClassController,
     getClasses,
     getAttendanceController,
+    getStudentAttendanceController,
 };
