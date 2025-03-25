@@ -1,22 +1,87 @@
 
 import mongoose from "mongoose";
-import mongosse from "mongoose";
+const attendanceSchema = new mongoose.Schema({
+  date: {
+    type: Date,
+    required: true,
+  },
+  lectures: [
+    {
+      subject: {
+        type: String,
+      },
+      teacher:{
+        type:String,
+      },
+      student:[
+        {
+          name:String,
+          rollNo:Number,
+          inTime:String,
+          outTime:String,
+          present:Boolean,
+        }
+      ]
+    },
+  ],
+});
 const teacherSchema=new mongoose.Schema({
-    name:String,
-    phone:String,
-    subject:String,
+   name:{
+    type:String,
+    required:true,
+   },
+   email:{
+    type:String,
+    required:true,
+  },
+   password:{
+    type:String,
+    required:true,
+  },
+  subject:{
+    type:String,
+    required:true,
+  },
+  classes:[{
+    type:String,
+  }]
+
+
 
 });
 const studentSchema=new mongoose.Schema({
-    name:String,
-    class:String,
-    rollno:Number,
-    face:String,
+    name:{
+      type:String,
+      required:true,
+    },
+    class:{
+      type:String,
+      required:true,
+    },
+    rollno:{
+      type:Number,
+      required:true,
+    },
+    face:{
+      type:String,
+      required:true,
+    },
+    email:{
+      type:String,
+      required:true,
+    },
+    password:{
+      type:String,
+      required:true,
+    },
+    classes:{
+      type:String,
+    }
 
 })
-const classSchema = new mongosse.Schema({
+const classSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  admin: {
+  adminId: {
     type: String,
     required: true,
   },
@@ -30,19 +95,12 @@ const classSchema = new mongosse.Schema({
       type: String,
     },
   ],
-  attendance: [
-    {
-      student: {
-        type:String,
-      },
-      teacher: {
-        type: String,
-      },
-      present: Boolean,
-    },
-  ],
+  attendance: [attendanceSchema],
+  uniqueId:{
+    type:String,
+  }
 });
-const adminSchema=new mongosse.Schema({
+const adminSchema=new mongoose.Schema({
     name:{
         type:String,
         required:true
@@ -56,7 +114,16 @@ const adminSchema=new mongosse.Schema({
         required:true,
     },
     classes:[{
+      id:{
         type:String,
+      },
+       name:{
+        type:String,
+        
+       },
+       classId:{
+        type:String,
+       }
     }],
 
 
