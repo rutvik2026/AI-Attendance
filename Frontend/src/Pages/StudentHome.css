@@ -1,0 +1,78 @@
+/* Navbar Section */
+.navbar {
+    background-color: #1e3a8a;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 60px;
+    width: 100vw;
+    height: 80px;
+    box-sizing: border-box;
+  }
+  
+  /* Navbar Title */
+  .navbar h1 {
+    margin: 0;
+    font-size: 32px;
+  }
+  
+  /* Navbar Buttons Section */
+  .navbar-buttons {
+    display: flex;
+    align-items: center;
+    gap: 16px; /* Space between buttons */
+    margin-left: auto; /* Push buttons to the right */
+  }
+  
+  /* Show Attendance Button - Centered on Page */
+  .show-attendance-btn {
+    margin-top: 40px;
+    background-color: #1e3a8a;
+    color: white;
+    border: none;
+    padding: 16px 40px;
+    cursor: pointer;
+    border-radius: 12px;
+    font-size: 20px;
+    font-weight: bold;
+  }
+  
+  .show-attendance-btn:hover {
+    background-color: #3b82f6;
+  }
+  
+  /* Logout Button - Smaller Size and Aligned to Right */
+  .logout-btn {
+    background-color: white;
+    color: #1e3a8a;
+    border: none;
+    padding: 6px 12px; /* Smaller padding for small size */
+    cursor: pointer;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 12px;
+    width: 5%;
+    margin-right: 20px;
+  }
+  
+  .logout-btn:hover {
+    background-color: #e0e7ff;
+  }
+  
+  /* Content Section */
+  .content {
+    padding: 80px;
+    text-align: center;
+  }
+  
+  .content h2 {
+    color: #1e3a8a;
+    font-size: 36px;
+  }
+  
+  .content p {
+    color: #4b5563;
+    font-size: 20px;
+  }
+  
