@@ -55,13 +55,13 @@ const studentSchema=new mongoose.Schema({
       required:true,
     },
     
-    rollno:{
+    rollNo:{
       type:Number,
       required:true,
     },
     face:{
       type:String,
-      required:true,
+      
     },
     email:{
       type:String,

@@ -5,7 +5,7 @@ import { addClassController, getAttendanceController, getClasses, getSearchClass
 const router=express.Router();
 const storage=multer.diskStorage({
     destination:(req,file,cb)=>{
-        cb(null,"uploads/");
+        cb(null,"Uploads/");
     },
     filename:(req,file,cb)=>{
         cb(null,Date.now()+"-"+file.originalname);
@@ -15,10 +15,10 @@ const storage=multer.diskStorage({
 const upload=multer({storage})
 router.post("/register",upload.single("profile"),registerController);
 router.post("/login",loginController);
-router.post("/makeClass",makeClassController);
-router.post("addClass",addClassController);
+router.post("/makeclass",makeClassController);
+router.post("addclass",addClassController);
 router.get("/getsearchclass",getSearchClassController);
-router.get("/getClass",getClasses);
-router.get("/getAttendance",getAttendanceController);
-router.get("/getStudentAttendance",getStudentAttendanceController);
+router.get("/getclasses",getClasses);
+router.get("/getattendance",getAttendanceController);
+router.get("/getstudentAttendance",getStudentAttendanceController);
 export default router;

@@ -1,4 +1,11 @@
 import cloudinary from "cloudinary";
+import dotenv from "dotenv"
+dotenv.config();
+cloudinary.config({
+  cloud_name: process.env.KEY_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
 const uploadOnCloudinary=async(localFilePath)=>{
    try {

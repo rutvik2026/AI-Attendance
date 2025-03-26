@@ -1,6 +1,7 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import fs from "fs"
 import {
   adminModule,
   classModule,
@@ -10,23 +11,20 @@ import {
 import { uploadOnCloudinary } from "../Utill/Cloudinary.js";
 const registerController = async (req, res) => {
   try {
-    const { role, name, email, password, subject, rollNo, classes } = req.body;
+   
+    const { role, name, email, password, subject, rollNo, classess } = req.body;
     if (!name || !email || !password) {
-      res.status(201).json({ message: "required all fields", success: false });
+      return res.status(201).json({ message: "required all fields", success: false });
     }
-    if (role === "teacher") {
-      if (!subject) {
-        res
-          .status(201)
-          .json({ message: "required all fields", success: false });
-      }
+    if (role === "Teacher") {
+     
       const existingTeacher = await teacherModule.findOne({
         email: email,
       });
       if (existingTeacher) {
-        res
+        return res
           .status(200)
-          .jason({ mesaage: "user is already exist", sucess: false });
+          .jason({ mesaage: "user is already exist", success: false });
       }
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
@@ -35,26 +33,27 @@ const registerController = async (req, res) => {
       const result = await teacher.save();
       res.status(200).json({
         message: "teaches is registered successfully",
-        sucess: true,
+        success: true,
       });
-    } else if (role === "student") {
-      if (!rollNo || !classes || !req.file) {
-        res
-          .status(200)
-          .jason({ mesaage: "user is already exist", sucess: false });
+    } else if (role === "Student") {
+      console.log("req.file",req.file);
+      if (!rollNo || !classess || !req.file) {
+        return res
+          .status(400)
+          .json({ mesaage: "user is already exist", success: false });
       }
-
+         const existingStudent = await studentModule.findOne({
+           email: email,
+         });
       if (existingStudent) {
-        res
+        return res
           .status(200)
-          .jason({ mesaage: "user is already exist", sucess: false });
+          .json({ mesaage: "user is already exist", success: false });
       }
       const profileLocalPath = req.file?.path;
       const profileUrl = await uploadOnCloudinary(profileLocalPath);
       req.body.profile = profileUrl;
-      const existingStudent = await studentModule.findOne({
-        email: email,
-      });
+     
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
       req.body.password = hashedPassword;
@@ -62,13 +61,15 @@ const registerController = async (req, res) => {
       const result = await newStudent.save();
       res
         .status(200)
-        .json({ message: "student registered successfully", sucess: true });
-    } else {
+        .json({ message: "student registered successfully", success: true });
+    } else if (role === "Admin") {
       const existingAdmin = await adminModule.findOne({
         email: email,
       });
       if (existingAdmin) {
-        res.status(201).json({ message: "user already exist", success: false });
+        return res
+          .status(201)
+          .json({ message: "user already exist", success: false });
       }
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
@@ -79,6 +80,8 @@ const registerController = async (req, res) => {
         message: "admin register successfully",
         success: true,
       });
+    } else {
+      return res.status(400).json({ message: "Invelide role" });
     }
   } catch (error) {
     console.log("Error in registerControlle", error);
@@ -87,6 +90,8 @@ const registerController = async (req, res) => {
 };
 const loginController = async (req, res) => {
   try {
+    console.log("req.body1",req.body.email);
+    
     const teacher = await teacherModule.findOne({
       email: req.body.email,
     });
@@ -96,70 +101,94 @@ const loginController = async (req, res) => {
     const admin = await adminModule.findOne({
       email: req.body.email,
     });
-    if (!teacher || !student || !admin) {
-      res.status(400).json({ message: "user not exist ", sucess: false });
+    console.log("admin student teacher",admin,student,teacher);
+    if (!teacher && !student && !admin) {
+     return res.status(201).json({ message: "user not exist1 ", success: false });
     }
     if (teacher) {
+      console.log("teacher",teacher);
       const isValid = await bcrypt.compare(req.body.password, teacher.password);
       if (!isValid) {
-        res
+       return res
           .status(400)
-          .json({ message: "Email or Password is incorrect ", sucess: false });
-      }
-    } else {
-      const token = jwt.sign(
-        { id: teacher.id, role: teacher },
-        process.env.JWT_SECRET,
-        {
-          expiresIn: "1d",
-        }
-      );
-      res
-        .status(200)
-        .json({
+          .json({ message: "Email or Password is incorrect ", success: false });
+      } else {
+        const token = jwt.sign(
+          { id: teacher._id },
+          process.env.JWT_SECRET,
+          {
+            expiresIn: "1d",
+          }
+        );
+       return res.status(200).json({
           message: "Login sucessfully as a teacher ",
-          sucess: true,
+          success: true,
           token,
+          cust:{
+            id:teacher._id,
+            role:"teacher",
+            
+          }
         });
-    }
-    if(student){
+      }
+    }else if(student){
+      console.log("student", student);
         const isValid = await bcrypt.compare(req.body.password,student.password);
         if(!isValid){
-            res
+           return res
               .status(400)
               .json({
                 message: "Email or Password is incorrect ",
-                sucess: false,
+                success: false,
               });
         }else{
-            const token = jwt.sign({id:student.id,role:student,rollNo:student.rollNo},{
+            const token = jwt.sign({id:student._id},{
                 expiresIn:"1d",
             });
-            res.status(200).json({
+           return res.status(200).json({
               message: "Login sucessfully as a student ",
-              sucess: true,
+              success: true,
               token,
+              cust:{
+                id:student._id,
+                role:"student",
+                rollNo:student.rollNo,
+              }
             });
         }
-        if(!admin){
-             res.status(400).json({
-               message: "Email or Password is incorrect ",
-               sucess: false,
-             });
-        }else{
-             const token = jwt.sign({id:student.id,role:admin},{
-                expiresIn:"1d",
-            });
-            res.status(200).json({
-              message: "Login sucessfully as a admin ",
-              sucess: true,
-              token,
-            });
+    } else{
+             const isValid = await bcrypt.compare(
+               req.body.password,
+               admin.password
+             );
+             if (!isValid) {
+              return res.status(400).json({
+                 message: "Email or Password is incorrect ",
+                 success: false,
+               });
+             }else{
+              const token = jwt.sign(
+                { id: admin._id, role: admin },
+                process.env.JWT_SECRET,
+                {
+                  expiresIn: "1d",
+                }
+              );
+               return res.status(200).json({
+                message: "Login sucessfully as a admin ",
+                success: true,
+                token,
+                cust:{
+                  id:admin._id,
+                  role:"admin",
+                }
+              });
+             }
         }
-    }
+    
   } catch (error) {
     console.log("error in loginController ", error);
-    res.status(500).json({ mesaage: "error in loginController" });
+    res.status(500).json({ mesaage: "error in loginController" ,success:false});
   }
 };
 const makeClassController=async(req,res)=>{
@@ -169,7 +198,7 @@ const makeClassController=async(req,res)=>{
         _id: adminId,
       });
       if(!admin){
-         res.status(400).json({ mesaage: "admin not found" });
+         res.status(400).json({ mesaage: "admin not found",success:false });
       };
       const uniqueId = Date.now().toString().slice(-4);
       const newClassData={
@@ -188,12 +217,12 @@ const makeClassController=async(req,res)=>{
        const rel=await admin.save();
        res.status(200).json({
         message:"class make sucessfully",
-        sucess:true,
+        success:true,
        });
 
     } catch (error) {
       console.log("error in makeClassController",error);
-      res.status(500).json({ mesaage: "error in makeClassController" });
+      res.status(500).json({ mesaage: "error in makeClassController" ,success:false});
     }
 }
 
@@ -201,7 +230,7 @@ const addClassController=async(req,res)=>{
     try {
       const {role,userId,classId}=req.body;
         if(!role || !userId || !classId){
-          res.status(400).json({ mesaage: "role or userId or classId is required" });
+          res.status(400).json({ mesaage: "role or userId or classId is required",success:false });
         };
         const classes=await classModule({_id:classId});
         
@@ -210,7 +239,7 @@ const addClassController=async(req,res)=>{
           await classes.save();
           const stud=await studentModule.findOne({_id:userId});
           stud.classes(classId);
-          res.status(200).json({ mesaage: "student add to class" });
+          res.status(200).json({ mesaage: "student add to class" ,success:true});
         }else{
           classes.teacher.push(userId);
           await classes.save();
@@ -236,14 +265,19 @@ const getSearchClassController=async(rea,res)=>{
 };
 const getClasses=async(req,res)=>{
   try {
-    const {role,userId}=req.query.q;
+    const {role,userId}=req.query;
+    console.log("role and userId from getClssCntr",role,userId);
     if(role==="admin"){
       const admin=await adminModule.findOne({_id:userId});
-      admin.classes.map(async(cals)=>{
-          const cl=await classModule.findOne({uniqueId:cals.uniqueId});
-          res.status(200).json(cl);
+    const fd = await Promise.all(
+      admin.classes.map(async (cals) => {
+        const cl = await classModule.findOne({ _id: cals.id });
+        console.log("Found class:", cl);
+        return cl;
       })
-    }else{
+    );
+    res.status(200).json(fd);
+   }else{
       const teacher=await teacherModule.findOne({_id:userId});
       teacher.classes.map(async(cals)=>{
         const cl=await classModule.findOne({uniqueId:cals.uniqueId});
