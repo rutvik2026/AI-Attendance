@@ -1,6 +1,6 @@
 import express from "express";
 import multer from "multer";
-import { addClassController, getAttendanceController, getClasses, getSearchClassController, getStudentAttendanceController, loginController, makeClassController, registerController } from "../Controllers/Controller.js";
+import { addClassController, getAttendanceController, getClasses, getStudentAttendanceController, loginController, makeClassController, registerController } from "../Controllers/Controller.js";
 
 const router=express.Router();
 const storage=multer.diskStorage({
@@ -16,8 +16,8 @@ const upload=multer({storage})
 router.post("/register",upload.single("profile"),registerController);
 router.post("/login",loginController);
 router.post("/makeclass",makeClassController);
-router.post("addclass",addClassController);
-router.get("/getsearchclass",getSearchClassController);
+router.post("/addclass",addClassController);
+
 router.get("/getclasses",getClasses);
 router.get("/getattendance",getAttendanceController);
 router.get("/getstudentAttendance",getStudentAttendanceController);

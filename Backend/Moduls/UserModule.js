@@ -73,7 +73,11 @@ const studentSchema=new mongoose.Schema({
     },
     classes:{
       type:String,
+    },
+    classId:{
+      type:String,
     }
+
 
 })
 const classSchema = new mongoose.Schema({

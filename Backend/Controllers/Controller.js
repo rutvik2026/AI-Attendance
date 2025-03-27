@@ -114,7 +114,7 @@ const loginController = async (req, res) => {
           .json({ message: "Email or Password is incorrect ", success: false });
       } else {
         const token = jwt.sign(
-          { id: teacher._id },
+          { id:teacher._id },
           process.env.JWT_SECRET,
           {
             expiresIn: "1d",
@@ -142,9 +142,13 @@ const loginController = async (req, res) => {
                 success: false,
               });
         }else{
-            const token = jwt.sign({id:student._id},{
-                expiresIn:"1d",
-            });
+            const token = jwt.sign(
+              { id: student._id },
+              process.env.JWT_SECRET,
+              {
+                expiresIn: "1d",
+              }
+            );
            return res.status(200).json({
               message: "Login sucessfully as a student ",
               success: true,
@@ -153,6 +157,7 @@ const loginController = async (req, res) => {
                 id:student._id,
                 role:"student",
                 rollNo:student.rollNo,
+                classId:student.classId,
               }
             });
         }
@@ -228,24 +233,50 @@ const makeClassController=async(req,res)=>{
 
 const addClassController=async(req,res)=>{
     try {
-      const {role,userId,classId}=req.body;
-        if(!role || !userId || !classId){
+      const {role,userId,uniqueId}=req.body;
+      console.log("req.bory in add classCntr",req.body);
+        if(!role || !userId || !uniqueId){
           res.status(400).json({ mesaage: "role or userId or classId is required",success:false });
         };
-        const classes=await classModule({_id:classId});
+        const classes=await classModule.findOne({uniqueId:uniqueId});
         
         if(role==="student"){
-          classes.students.push(userId);
-          await classes.save();
+         if (!classes.students.includes(userId)) {
+           
+           classes.students.push(userId); 
+           await classes.save();
+           console.log("User added to class successfully.");
+         } else {
+           console.log("User already exists in this class.");
+         }
+
           const stud=await studentModule.findOne({_id:userId});
-          stud.classes(classId);
-          res.status(200).json({ mesaage: "student add to class" ,success:true});
+          stud.classId = classes._id;
+          stud.save();
+         return res.status(200).json({ mesaage: "student add to class" ,success:true});
         }else{
-          classes.teacher.push(userId);
-          await classes.save();
-          const tech=await teacherModule.findOne({_id:userId});
-          tech.classes.push(classId);
-          res.status(200).json({ mesaage: "teacher add to class" });
+          if (!classes.teacher.includes(userId)) {
+            classes.teacher.push(userId);
+            await classes.save();
+          }
+
+          const tech = await teacherModule.findOne({ _id: userId });
+
+          if (!tech) {
+            console.log("Teacher not found!");
+          } else {
+            console.log("Teacher found:", tech);
+
+            if (!tech.classes.includes(classes._id)) {
+              tech.classes.push(classes._id);
+              await tech.save();
+              console.log("Class added to teacher successfully.");
+            } else {
+              console.log("Class already assigned to teacher.");
+            }
+          }
+
+         return res.status(200).json({ mesaage: "teacher add to class" });
         }
         
     } catch (error) {
@@ -253,16 +284,7 @@ const addClassController=async(req,res)=>{
       res.status(500).json({ mesaage: "error in addClassController" });
     }
 };
-const getSearchClassController=async(rea,res)=>{
-  try {
-    const {uniqueId}=req.query.q;
-    const classes=await classModule.findOne({uniqueId:uniqueId});
-    res.status(200).json(classes);
-  } catch (error) {
-    console.log("error in searchClassCOntroller",error);
-    res.status(500).json({ mesaage: "error in addClassController" });
-  }
-};
+
 const getClasses=async(req,res)=>{
   try {
     const {role,userId}=req.query;
@@ -279,10 +301,15 @@ const getClasses=async(req,res)=>{
     res.status(200).json(fd);
    }else{
       const teacher=await teacherModule.findOne({_id:userId});
-      teacher.classes.map(async(cals)=>{
-        const cl=await classModule.findOne({uniqueId:cals.uniqueId});
-        res.status(200).json(cl);
-      })
+     
+      const fd = await Promise.all(
+        teacher.classes.map(async (cals) => {
+          const cl = await classModule.findOne({ _id: cals });
+          console.log("Found class:", cl);
+          return cl;
+        })
+      );
+      res.status(200).json(fd);
     }
   } catch (error) {
     console.log("error in getClassesController ",error);
@@ -293,9 +320,16 @@ const getClasses=async(req,res)=>{
 };
 const getAttendanceController=async(req,res)=>{
     try {
-      const {classId}=req.query.q;
-      const classes=await classModule.findOne({_id:classId});
+      const {classId}=req.query;
+      console.log("classId",classId);
+      const classes = await classModule.findOne({ _id: classId });
+
+      if (!classes) {
+        return res.status(400).json({ message: "Class not found" });
+      }
+
       res.status(200).json(classes.attendance);
+
     } catch (error) {
       console.log("error in getAttendanceController",error);
       res.status(500).json({message:"error in getAttendanceController",sucess:false})
@@ -303,29 +337,38 @@ const getAttendanceController=async(req,res)=>{
 }
 
 const getStudentAttendanceController=async(req,res)=>{
-  try {
-    const { classId, rollNo } = req.query.q;
-    const classes = await classModule.findOne({ _id: classId });
-    if (!classes) {
-      res
-        .status(400)
-        .json({ message: "Error in getStudentAtendanceController" });
-    }
-    const attendance = await classes.attendance.filter(
-      attendance.student.rollNo === rollNo
-    );
-    res.status(200).json({ message: "getAttendance sucessfully" });
-  } catch (error) {
-    console.log("error in getStudentAttendance",error);
-    res.status(500).json({message:"error in getStudentAttendance"});
-  }
+ const { classId, rollNo } = req.query;
+ console.log("backend", req.query);
+
+ try {
+   const classes = await classModule.findOne({ _id: classId });
+
+   if (!classes) {
+     return res.status(400).json({ message: "Class not found" });
+   }
+
+   // Ensure attendance exists and is an array
+   if (!Array.isArray(classes.attendance)) {
+     return res.status(400).json({ message: "Attendance data not available" });
+   }
+
+   // Proper filter function
+   const attendance = classes.attendance.filter(
+     (att) => att.student.rollNo === rollNo
+   );
+
+   return res.status(200).json(attendance);
+ } catch (error) {
+   console.log("error in getStudentAttendance", error);
+   res.status(500).json({ message: "error in getStudentAttendance" });
+ }
 }
 export { 
     registerController ,
     loginController,
     makeClassController,
     addClassController,
-    getSearchClassController,
+    
     getClasses,
     getAttendanceController,
     getStudentAttendanceController,

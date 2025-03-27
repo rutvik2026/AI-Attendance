@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./LoginReg.css";
 import axios from "axios";
+import WebcamCapture from "./WebCam";
 
 export default function Register() {
   const [role, setRole] = useState("");
@@ -10,11 +11,12 @@ export default function Register() {
     name: "",
     password: "",
     profile: null,
-    rollNo:"",
+    rollNo: "",
     email: "",
     class: "",
     role: "",
   });
+  const [previewImage, setPreviewImage] = useState(null);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -26,18 +28,19 @@ export default function Register() {
       formDataToSend.append("email", formData.email);
       formDataToSend.append("classess", formData.class);
       formDataToSend.append("role", formData.role);
-      formDataToSend.append("rollNo",formData.rollNo);
+      formDataToSend.append("rollNo", formData.rollNo);
       if (formData.profile) {
         formDataToSend.append("profile", formData.profile);
       }
-        console.log("frontend",formDataToSend);
+      console.log("Sending form data:", formDataToSend);
+
       const res = await axios.post("/api/v1/user/register", formDataToSend, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       if (res.data.success) {
         sessionStorage.setItem("token", res.data.token);
-        alert("Register successfully");
+        alert("Registered successfully");
         navigate("/");
       } else {
         alert("Registration failed");
@@ -48,11 +51,24 @@ export default function Register() {
   };
 
   const handleChange = (e) => {
-    const { name, value, type, files } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: type === "file" ? files[0] : value,
-    }));
+    const { name, type, files, value } = e.target;
+    if (type === "file") {
+      const file = files[0];
+      setFormData((prevData) => ({ ...prevData, [name]: file }));
+
+      // Show preview image
+      if (file) {
+        setPreviewImage(URL.createObjectURL(file));
+      }
+    } else {
+      setFormData((prevData) => ({ ...prevData, [name]: value }));
+    }
+  };
+
+  // Handle image captured from WebcamCapture
+  const handleCapture = (imageFile) => {
+    setFormData((prevData) => ({ ...prevData, profile: imageFile }));
+    setPreviewImage(URL.createObjectURL(imageFile));
   };
 
   const renderForm = () => {
@@ -68,9 +84,21 @@ export default function Register() {
                 className="w-full border p-2 rounded"
                 onChange={handleChange}
                 name="profile"
-                required
               />
+
+              {/* Webcam Capture Component */}
+              <WebcamCapture onCapture={handleCapture} />
+
+              {/* Show Image Preview */}
+              {previewImage && (
+                <img
+                  src={previewImage}
+                  alt="Preview"
+                  className="mt-2 w-32 h-32 border rounded"
+                />
+              )}
             </div>
+
             <div className="mb-4 m-2">
               <input
                 type="text"
@@ -99,7 +127,7 @@ export default function Register() {
                 placeholder="Roll No"
                 className="w-full border p-2 rounded"
                 onChange={handleChange}
-                name="rollNo" // 🔥 Fixed: Changed from "roll" to "rollNo"
+                name="rollNo"
                 value={formData.rollNo}
                 required
               />
@@ -135,6 +163,7 @@ export default function Register() {
             </button>
           </form>
         );
+
       case "Admin":
       case "Teacher":
         return (
@@ -196,42 +225,18 @@ export default function Register() {
           Register as {role || "..."}
         </h1>
         <div className="mb-4 flex justify-around">
-          <button
-            className={`role-btn m-2 ${role === "Admin" ? "active" : ""}`}
-            onClick={() => {
-              setRole("Admin");
-              setFormData((prevData) => ({
-                ...prevData,
-                role: "Admin",
-              }));
-            }}
-          >
-            Admin
-          </button>
-          <button
-            className={`role-btn m-1 ${role === "Student" ? "active" : ""}`}
-            onClick={() => {
-              setRole("Student");
-              setFormData((prevData) => ({
-                ...prevData,
-                role: "Student",
-              }));
-            }}
-          >
-            Student
-          </button>
-          <button
-            className={`role-btn m-1 ${role === "Teacher" ? "active" : ""}`}
-            onClick={() => {
-              setRole("Teacher");
-              setFormData((prevData) => ({
-                ...prevData,
-                role: "Teacher",
-              }));
-            }}
-          >
-            Teacher
-          </button>
+          {["Admin", "Student", "Teacher"].map((r) => (
+            <button
+              key={r}
+              className={`role-btn m-2 ${role === r ? "active" : ""}`}
+              onClick={() => {
+                setRole(r);
+                setFormData((prevData) => ({ ...prevData, role: r }));
+              }}
+            >
+              {r}
+            </button>
+          ))}
         </div>
         {renderForm()}
         <p className="mt-4 m-2">
