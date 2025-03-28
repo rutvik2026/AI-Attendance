@@ -12,7 +12,8 @@ export const Home = () => {
   const navigate = useNavigate();
   const [show, setShow] = useState(false);
   const [uniqueId, setUniqueId] = useState();
-  const [count,setCount]=useState(false);
+  const [count, setCount] = useState(false);
+  const [make, setMake] = useState(false);
   useEffect(() => {
     const token = sessionStorage.getItem("cust");
     const parsedToken = token ? JSON.parse(token) : {};
@@ -45,7 +46,7 @@ export const Home = () => {
       setCount(!count);
       setClassName(!className);
       alert("class maked successfully");
-      
+
     } catch (error) {
       console.error("Error in making class", error);
     }
@@ -56,10 +57,10 @@ export const Home = () => {
     setClassName(!className);
   };
   const handleAttendance = (id) => {
-    console.log("id",id);
+    console.log("id", id);
     navigate("/attendance", { state: { classId: id } });
   };
-  
+
   const addToClass = () => {
     setShow(!show);
   };
@@ -81,6 +82,19 @@ export const Home = () => {
     }
   };
   console.log("classes", classes);
+  const handleMakeAttendance = () => {
+    setMake(!make);
+  };
+  const handleStartAttendance = async () => {
+    try {
+      const res = await axios.post("/api/v1/user/startattendance", {
+        uniqueId: uniqueId,
+      });
+      console.log("res in start attendance", res.data);
+    } catch (error) {
+      console.log("Error in handleStartAttendance", error);
+    }
+  }
   return (
     <Container className="d-flex justify-content-center flex-wrap mt-4">
       {role === "admin" || role === "teacher" ? (
@@ -143,6 +157,34 @@ export const Home = () => {
           )}
           {role === "teacher" ? (
             <>
+              {make ? (
+                <>
+
+                  <Form.Control
+                    type="number"
+                    placeholder="Enter UniqueId of Class"
+                    value={uniqueId}
+                    onChange={(e) => {
+                      setUniqueId(e.target.value);
+                    }}
+                  />
+                  <Button
+                    varient="primary"
+                    className="w-100 mt-3"
+                    onClick={handleStartAttendance}
+                  >
+                    Start Attendance
+                  </Button>
+                </>
+
+              ) : ("")}
+              <Button
+                varient="primary"
+                className="w-100 mt-3"
+                onClick={handleMakeAttendance}
+              >
+                Make Attendance
+              </Button>
               {show ? (
                 <>
                   <Form.Control
@@ -164,6 +206,7 @@ export const Home = () => {
               ) : (
                 ""
               )}
+
               <Button
                 varient="primary"
                 className="w-100 mt-5"

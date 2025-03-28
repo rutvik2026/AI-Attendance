@@ -60,7 +60,7 @@ const studentSchema=new mongoose.Schema({
       required:true,
     },
     face:{
-      type:String,
+      type: Buffer,
       
     },
     email:{

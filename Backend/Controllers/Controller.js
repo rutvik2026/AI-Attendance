@@ -2,6 +2,9 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import fs from "fs"
+import path from "path";
+import axios from "axios"
+import { spawn } from "child_process";
 import {
   adminModule,
   classModule,
@@ -9,85 +12,80 @@ import {
   teacherModule,
 } from "../Moduls/UserModule.js";
 import { uploadOnCloudinary } from "../Utill/Cloudinary.js";
+
 const registerController = async (req, res) => {
   try {
-   
-    const { role, name, email, password, subject, rollNo, classess } = req.body;
+    const { role, name, email, password, subject, rollNo, classess ,face} = req.body;
     if (!name || !email || !password) {
       return res.status(201).json({ message: "required all fields", success: false });
     }
     if (role === "Teacher") {
-     
-      const existingTeacher = await teacherModule.findOne({
-        email: email,
-      });
+      const existingTeacher = await teacherModule.findOne({ email: email });
       if (existingTeacher) {
-        return res
-          .status(200)
-          .jason({ mesaage: "user is already exist", success: false });
+        return res.status(200).json({ message: "user is already exist", success: false });
       }
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
       req.body.password = hashedPassword;
       const teacher = new teacherModule(req.body);
-      const result = await teacher.save();
-      res.status(200).json({
-        message: "teaches is registered successfully",
-        success: true,
-      });
+      await teacher.save();
+      res.status(200).json({ message: "teacher is registered successfully", success: true });
     } else if (role === "Student") {
-      console.log("req.file",req.file);
+      console.log("req.file", req.file);
       if (!rollNo || !classess || !req.file) {
-        return res
-          .status(400)
-          .json({ mesaage: "user is already exist", success: false });
+        return res.status(400).json({ message: "Missing required fields", success: false });
       }
-         const existingStudent = await studentModule.findOne({
-           email: email,
-         });
+      const existingStudent = await studentModule.findOne({ email: email });
       if (existingStudent) {
-        return res
-          .status(200)
-          .json({ mesaage: "user is already exist", success: false });
+        return res.status(200).json({ message: "user is already exist", success: false });
       }
+
       const profileLocalPath = req.file?.path;
       const profileUrl = await uploadOnCloudinary(profileLocalPath);
       req.body.profile = profileUrl;
-     
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-      req.body.password = hashedPassword;
-      const newStudent = new studentModule(req.body);
-      const result = await newStudent.save();
-      res
-        .status(200)
-        .json({ message: "student registered successfully", success: true });
-    } else if (role === "Admin") {
-      const existingAdmin = await adminModule.findOne({
-        email: email,
+
+      // Run Python script for face data extraction
+      const pythonProcess = spawn('python', ['Script/Convert_Image.py', profileLocalPath]);
+      let faceData = '';
+
+      pythonProcess.stdout.on('data', (data) => {
+        faceData += data;
       });
+
+      pythonProcess.on('close', async (code) => {
+        if (code === 0) {
+          req.body.face = Buffer.from(faceData, 'base64');
+
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(password, salt);
+          req.body.password = hashedPassword;
+          const newStudent = new studentModule(req.body);
+          await newStudent.save();
+          res.status(200).json({ message: "student registered successfully", success: true });
+        } else {
+          res.status(502).json({ message: "Face extraction failed", success: false });
+        }
+      });
+    } else if (role === "Admin") {
+      const existingAdmin = await adminModule.findOne({ email: email });
       if (existingAdmin) {
-        return res
-          .status(201)
-          .json({ message: "user already exist", success: false });
+        return res.status(201).json({ message: "user already exist", success: false });
       }
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
       req.body.password = hashedPassword;
       const newAdmin = new adminModule(req.body);
-      const result = await newAdmin.save();
-      res.status(200).json({
-        message: "admin register successfully",
-        success: true,
-      });
+      await newAdmin.save();
+      res.status(200).json({ message: "admin registered successfully", success: true });
     } else {
-      return res.status(400).json({ message: "Invelide role" });
+      return res.status(400).json({ message: "Invalid role" });
     }
   } catch (error) {
-    console.log("Error in registerControlle", error);
-    res.status(500).json({ message: "Intrnal server error", success: false });
+    console.log("Error in registerController", error);
+    res.status(500).json({ message: "Internal server error", success: false });
   }
 };
+
 const loginController = async (req, res) => {
   try {
     console.log("req.body1",req.body.email);
@@ -363,12 +361,73 @@ const getStudentAttendanceController=async(req,res)=>{
    res.status(500).json({ message: "error in getStudentAttendance" });
  }
 }
+
+async function compareFaces(face1, face2) {
+  return face1.equals(face2);
+}
+
+const startAttendanceController = async (req, res) => {
+  try {
+    const { uniqueId, subject, teacher } = req.body;
+    const classData = await classModule.findOne({ uniqueId });
+
+    if (!classData) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    const studentIds = classData.students;
+    if (!studentIds.length) {
+      return res.status(404).json({ message: 'No students found' });
+    }
+
+    const response = await axios.get('http://127.0.0.1:5001/detect_faces');
+    const detectedFaces = response.data.faces.map(face => Buffer.from(face, 'latin1'));
+
+    const currentDate = new Date();
+    const attendanceRecord = {
+      date: currentDate,
+      lectures: [{ subject, teacher, student: [] }],
+    };
+
+    for (const studentId of studentIds) {
+      const student = await studentModule.findById(studentId);
+      if (!student) continue;
+
+      const studentFace = student.face;
+      const isMatch = detectedFaces.some(detectedFace => compareFaces(detectedFace, studentFace));
+
+      const attendanceData = {
+        name: student.name,
+        rollNo: student.rollNo,
+        inTime: currentDate.toLocaleTimeString(),
+        outTime: '',
+        present: isMatch,
+      };
+
+      attendanceRecord.lectures[0].student.push(attendanceData);
+
+      const message = isMatch
+        ? `Face matched for student: ${student.name}`
+        : `Face did not match for student: ${student.name}`;
+      console.log(message);
+    }
+
+    classData.attendance.push(attendanceRecord);
+    await classData.save();
+
+    res.status(200).json({ message: 'Attendance check completed', attendanceRecord });
+  } catch (error) {
+    console.error('Error in startAttendanceController:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 export { 
     registerController ,
     loginController,
     makeClassController,
     addClassController,
-    
+    startAttendanceController,
     getClasses,
     getAttendanceController,
     getStudentAttendanceController,
