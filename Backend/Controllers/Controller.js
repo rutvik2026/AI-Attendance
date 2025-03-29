@@ -362,15 +362,18 @@ const getStudentAttendanceController=async(req,res)=>{
  }
 }
 
-async function compareFaces(face1, face2) {
-  return face1.equals(face2);
-}
+const compareFaces = (face1, face2) => {
+  console.log('Comparing faces...');
+  return Math.random() < 0.5; // Placeholder for testing
+};
 
 const startAttendanceController = async (req, res) => {
   try {
-    const { uniqueId, subject, teacher } = req.body;
+    const { uniqueId,teacherId } = req.body;
     const classData = await classModule.findOne({ uniqueId });
-
+    const teacher = await teacherModule.findOne({
+      _id:teacherId
+    });
     if (!classData) {
       return res.status(404).json({ message: 'Class not found' });
     }
@@ -379,48 +382,61 @@ const startAttendanceController = async (req, res) => {
     if (!studentIds.length) {
       return res.status(404).json({ message: 'No students found' });
     }
-
-    const response = await axios.get('http://127.0.0.1:5001/detect_faces');
-    const detectedFaces = response.data.faces.map(face => Buffer.from(face, 'latin1'));
-
+      const tt={
+        teacherName:teacher.name,
+        subject:teacher.subject,
+      }
     const currentDate = new Date();
     const attendanceRecord = {
       date: currentDate,
-      lectures: [{ subject, teacher, student: [] }],
+      lectures: [{
+        tt,
+        student: [],
+      }],
     };
 
-    for (const studentId of studentIds) {
-      const student = await studentModule.findById(studentId);
-      if (!student) continue;
+    // Fetch detected faces from the API
+    const response = await axios.get('http://127.0.0.1:5001/detect_faces');
+    let detectedFaces = response.data.faces.map(face => Buffer.from(face, 'base64'));
+    console.log('Detected faces:', detectedFaces);
 
-      const studentFace = student.face;
-      const isMatch = detectedFaces.some(detectedFace => compareFaces(detectedFace, studentFace));
+    // Fetch student data
+    const students = await studentModule.find({ _id: { $in: studentIds } });
 
-      const attendanceData = {
-        name: student.name,
-        rollNo: student.rollNo,
-        inTime: currentDate.toLocaleTimeString(),
-        outTime: '',
-        present: isMatch,
-      };
+    students.forEach(student => {
+      if (!student.face) {
+        console.warn(`Face data not available for student: ${student.name}`);
+        return;
+      }
 
-      attendanceRecord.lectures[0].student.push(attendanceData);
+      const studentFace = Buffer.from(student.face, 'base64');
 
-      const message = isMatch
-        ? `Face matched for student: ${student.name}`
-        : `Face did not match for student: ${student.name}`;
-      console.log(message);
-    }
+      // Compare detected faces with student face
+      const isDetected = detectedFaces.some(face => compareFaces(face, studentFace));
+
+      if (isDetected) {
+        attendanceRecord.lectures[0].student.push({
+          name: student.name,
+          rollNo: student.rollNo,
+          inTime: currentDate.toLocaleTimeString(),
+          outTime: '',
+          present: true,
+        });
+        console.log(`Attendance marked for: ${student.name}`);
+      }
+    });
 
     classData.attendance.push(attendanceRecord);
     await classData.save();
 
-    res.status(200).json({ message: 'Attendance check completed', attendanceRecord });
+    res.status(200).json({ message: 'Attendance marked for detected students', attendanceRecord });
+
   } catch (error) {
     console.error('Error in startAttendanceController:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
 
 export { 
     registerController ,

@@ -89,6 +89,7 @@ export const Home = () => {
     try {
       const res = await axios.post("/api/v1/user/startattendance", {
         uniqueId: uniqueId,
+        teacherId:id,
       });
       console.log("res in start attendance", res.data);
     } catch (error) {
